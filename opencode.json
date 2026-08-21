@@ -1,0 +1,82 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "edit": "allow",
+    "bash": {
+      "*": "ask",
+      "python *": "allow",
+      "pip *": "allow",
+      "git *": "allow",
+      "ls *": "allow",
+      "cat *": "allow",
+      "ollama *": "allow",
+      "pytest *": "allow",
+      "ruff *": "allow",
+      "mypy *": "allow",
+    },
+    "websearch": "allow",
+    "webfetch": "allow"
+  }
+  ,
+  "provider": {
+    "unsloth": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Unsloth",
+      "options": {
+        "baseURL": "http://localhost:8888/v1"
+      },
+      "models": {
+
+        "unsloth/Qwen-AgentWorld-35B-A3B-GGUF:UD-Q5_K_XL": {
+          "name": "Qwen-AgentWorld-35B-A3B-GGUF",
+          "limit": {
+            "context": 200000,
+            "output": 30000
+          }},
+        "unsloth/Qwen3.8-27B-GGUF:UD-Q6_K": {
+          "name": "Qwen3.8 27B Q6_K",
+          "limit": {
+            "context": 90000,
+            "output": 15000
+          },
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "variants": {
+            "thinking": {
+              "options": {
+                "temperature": 0.6,
+                "topP": 0.95,
+                "topK": 20
+              },
+              "body": {
+                "enable_thinking": true
+              }
+            },
+
+            "fast": {
+              "options": {
+                "temperature": 0.3,
+                "topP": 0.9,
+                "topK": 20
+              },
+              "body": {
+                "enable_thinking": false
+              }          
+            }
+      }
+    }
+  }}},
+  "mcp": {
+  "context7": {
+    "type": "remote",
+    "url": "https://mcp.context7.com/mcp"
+  },
+  "github_grep": {
+    "type": "remote",
+    "url": "https://mcp.grep.app"
+  }
+}
+}
