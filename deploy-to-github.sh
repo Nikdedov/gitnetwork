@@ -42,7 +42,7 @@ echo "Committing changes..."
 git commit -m "chore: deploy GitNetwork to GitHub Pages" --allow-empty || echo "No changes to commit"
 
 echo "Pushing to GitHub..."
-git push -u origin main --force
+git push -u origin "$CURRENT_BRANCH" --force
 
 echo "Deployment complete!"
 echo "Repository: https://github.com/${GITHUB_USERNAME}/${REPOSITORY_NAME}"
@@ -51,5 +51,5 @@ echo ""
 echo "Next steps:"
 echo "1. Go to https://github.com/${GITHUB_USERNAME}/${REPOSITORY_NAME}/settings/pages"
 echo "2. Set Source to 'Deploy from a branch'"
-echo "3. Select 'main' branch and '/ (root)' folder"
+echo "3. Select '$CURRENT_BRANCH' branch and '/ (root)' folder"
 echo "4. Save"
