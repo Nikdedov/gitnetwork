@@ -31,7 +31,7 @@ export function Layout({ children }: { children: ReactNode }) {
             ))}
             {user && (
               <NavLink
-                to={`/@${encodeURIComponent(user.login)}`}
+                to={`/${encodeURIComponent(user.login)}`}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-ink-soft hover:bg-line/60 hover:text-ink"
               >
                 Profile

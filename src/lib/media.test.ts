@@ -57,7 +57,7 @@ describe('safeImageName', () => {
 
 describe('base64 helpers', () => {
   it('round-trips UTF-8 text', () => {
-    const text = 'Привет, мир! 🌍'
+    const text = 'Hello, world! 🌍'
     expect(base64ToUtf8(utf8ToBase64(text))).toBe(text)
   })
 

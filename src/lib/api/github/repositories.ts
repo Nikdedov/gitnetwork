@@ -30,7 +30,7 @@ export function repositoriesApi(client: GitHubClient) {
     },
     addTopics(owner: string, repo: string, topics: string[]): Promise<void> {
       return client.put<void>(`/repos/${encodeURIComponent(owner)}/${repo}/topics`, {
-        names: topics.join(' '),
+        names: topics,
       })
     },
     async ensureTopic(owner: string, repo: string, topic: string = SOCIAL_TOPIC): Promise<void> {

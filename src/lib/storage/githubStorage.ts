@@ -17,12 +17,19 @@ import { generateUlid } from '../ulid'
 import { arrayBufferToBase64, safeImageName, validateImage, type MediaFile } from '../media'
 import {
   PROFILE_PATH,
+  MANIFEST_PATH,
+  EVENTS_PATH,
+  AI_MEMORY_PATH,
+  AI_DECISIONS_PATH,
+  AI_HANDOFFS_PATH,
   type SocialProfile,
   type SocialStorage,
   type ProfileData,
 } from './socialStorage'
-import type { GitHubUser } from '../api/github/types'
+import type { GitHubUser, IssueComment } from '../api/github/types'
 import { postIdFromIssueTitle } from '../api/github/issues'
+import type { SocialEvent } from '../protocol/events'
+import { createDefaultManifest, isValidManifest, type SocialManifest } from '../protocol/manifest'
 
 export interface GitHubStorageOptions {
   github: GitHubApi
@@ -294,6 +301,375 @@ export class GitHubStorage implements SocialStorage {
     await this.cache.delete(cacheKey(['profile', profile.username]))
   }
 
+  async getManifest(username: string): Promise<SocialManifest | null> {
+    const key = cacheKey(['manifest', username])
+    const cached = await this.cache.get<SocialManifest>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return null
+
+    const raw = await this.github.contents.readFileOrNull(username, SOCIAL_REPO, MANIFEST_PATH, repo.default_branch)
+    if (!raw) {
+      const defaultManifest = createDefaultManifest()
+      await this.cache.set(key, defaultManifest, this.ttlMs)
+      return defaultManifest
+    }
+
+    try {
+      const parsed = JSON.parse(raw)
+      if (isValidManifest(parsed)) {
+        await this.cache.set(key, parsed, this.ttlMs)
+        return parsed
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    const defaultManifest = createDefaultManifest()
+    await this.cache.set(key, defaultManifest, this.ttlMs)
+    return defaultManifest
+  }
+
+  async saveManifest(username: string, manifest: SocialManifest): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const content = JSON.stringify(manifest, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        MANIFEST_PATH,
+        content,
+        'Create social manifest',
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, MANIFEST_PATH, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          MANIFEST_PATH,
+          content,
+          'Update social manifest',
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['manifest', username]))
+  }
+
+  async getEvents(username: string, options?: { limit?: number; type?: string }): Promise<SocialEvent[]> {
+    const limit = options?.limit ?? 100
+    const key = cacheKey(['events', username, String(limit), options?.type || 'all'])
+    const cached = await this.cache.get<SocialEvent[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const eventPaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${EVENTS_PATH}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+      .slice(0, limit)
+
+    const events: SocialEvent[] = []
+    for (const path of eventPaths) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        // Note: parseEvent would be imported from protocol/events, but for now we validate minimally
+        if (parsed && typeof parsed === 'object' && 'type' in parsed && 'id' in parsed && 'actor' in parsed) {
+          if (!options?.type || parsed.type === options.type) {
+            events.push(parsed as SocialEvent)
+          }
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, events, this.ttlMs)
+    return events
+  }
+
+  async createEvent(event: SocialEvent): Promise<SocialEvent> {
+    const repo = await this.github.repos.getSocialRepo(event.actor)
+    if (!repo) throw new Error(`${event.actor} has no social repository`)
+
+    const date = new Date(event.createdAt)
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const path = `${EVENTS_PATH}/${year}/${month}/${day}/${event.id}.json`
+
+    const content = JSON.stringify(event, null, 2)
+    await this.github.contents.createFile(
+      event.actor,
+      SOCIAL_REPO,
+      path,
+      content,
+      `Create event ${event.type}: ${event.id}`,
+      repo.default_branch,
+    )
+
+    await this.invalidateUser(event.actor)
+    return event
+  }
+
+  async getAiMemory(username: string): Promise<Record<string, unknown>[]> {
+    const key = cacheKey(['ai-memory', username])
+    const cached = await this.cache.get<Record<string, unknown>[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const memoryPaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${AI_MEMORY_PATH}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+
+    const memories: Record<string, unknown>[] = []
+    for (const path of memoryPaths.slice(0, 100)) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          memories.push(parsed)
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, memories, this.ttlMs)
+    return memories
+  }
+
+  async saveAiMemory(username: string, memory: Record<string, unknown>): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const id = (memory as { id?: string }).id || generateUlid()
+    const date = new Date((memory as { createdAt?: string }).createdAt || new Date().toISOString())
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const path = `${AI_MEMORY_PATH}/${year}/${month}/${day}/${id}.json`
+
+    const content = JSON.stringify(memory, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        path,
+        content,
+        `Save AI memory ${id}`,
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, path, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          path,
+          content,
+          `Update AI memory ${id}`,
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['ai-memory', username]))
+  }
+
+  async getAiDecisions(username: string): Promise<Record<string, unknown>[]> {
+    const key = cacheKey(['ai-decisions', username])
+    const cached = await this.cache.get<Record<string, unknown>[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const decisionPaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${AI_DECISIONS_PATH}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+
+    const decisions: Record<string, unknown>[] = []
+    for (const path of decisionPaths.slice(0, 100)) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          decisions.push(parsed)
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, decisions, this.ttlMs)
+    return decisions
+  }
+
+  async saveAiDecision(username: string, decision: Record<string, unknown>): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const id = (decision as { id?: string }).id || generateUlid()
+    const date = new Date((decision as { createdAt?: string }).createdAt || new Date().toISOString())
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const path = `${AI_DECISIONS_PATH}/${year}/${month}/${day}/${id}.json`
+
+    const content = JSON.stringify(decision, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        path,
+        content,
+        `Save AI decision ${id}`,
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, path, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          path,
+          content,
+          `Update AI decision ${id}`,
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['ai-decisions', username]))
+  }
+
+  async getAiHandoffs(username: string): Promise<Record<string, unknown>[]> {
+    const key = cacheKey(['ai-handoffs', username])
+    const cached = await this.cache.get<Record<string, unknown>[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const handoffPaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${AI_HANDOFFS_PATH}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+
+    const handoffs: Record<string, unknown>[] = []
+    for (const path of handoffPaths.slice(0, 100)) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          handoffs.push(parsed)
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, handoffs, this.ttlMs)
+    return handoffs
+  }
+
+  async saveAiHandoff(username: string, handoff: Record<string, unknown>): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const id = (handoff as { id?: string }).id || generateUlid()
+    const date = new Date((handoff as { createdAt?: string }).createdAt || new Date().toISOString())
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const path = `${AI_HANDOFFS_PATH}/${year}/${month}/${day}/${id}.json`
+
+    const content = JSON.stringify(handoff, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        path,
+        content,
+        `Save AI handoff ${id}`,
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, path, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          path,
+          content,
+          `Update AI handoff ${id}`,
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['ai-handoffs', username]))
+  }
+
+  async getIssueComments(username: string, issueNumber: number): Promise<IssueComment[]> {
+    const key = cacheKey(['issuecomments', username, String(issueNumber)])
+    const cached = await this.cache.get<IssueComment[]>(key)
+    if (cached) return cached
+
+    const comments = await this.github.issues.getComments(username, SOCIAL_REPO, issueNumber)
+    await this.cache.set(key, comments, this.ttlMs)
+    return comments
+  }
+
+  async invalidateIssueComments(username: string, issueNumber: number): Promise<void> {
+    await this.cache.delete(cacheKey(['issuecomments', username, String(issueNumber)]))
+  }
+
+  async getMyLike(username: string, issueNumber: number, login: string): Promise<number | null> {
+    const key = cacheKey(['mylike', username, String(issueNumber), login])
+    const cached = await this.cache.get<number | null>(key)
+    if (cached !== undefined) return cached
+
+    const reactions = await this.github.reactions.getMyLike(username, SOCIAL_REPO, issueNumber, login)
+    const hasLike = reactions ? 1 : 0
+    await this.cache.set(key, hasLike, this.ttlMs)
+    return hasLike
+  }
+
+  async invalidateMyLike(username: string, issueNumber: number, login: string): Promise<void> {
+    await this.cache.delete(cacheKey(['mylike', username, String(issueNumber), login]))
+  }
+
   async invalidateUser(username: string): Promise<void> {
     await Promise.all([
       this.cache.delete(cacheKey(['profile', username])),
@@ -301,6 +677,11 @@ export class GitHubStorage implements SocialStorage {
       this.cache.delete(cacheKey(['postissues', username])),
       this.cache.delete(cacheKey(['posts', username, '100'])),
       this.cache.delete(cacheKey(['following', username])),
+      this.cache.delete(cacheKey(['manifest', username])),
+      this.cache.delete(cacheKey(['events', username, '100', 'all'])),
+      this.cache.delete(cacheKey(['ai-memory', username])),
+      this.cache.delete(cacheKey(['ai-decisions', username])),
+      this.cache.delete(cacheKey(['ai-handoffs', username])),
     ])
   }
 }

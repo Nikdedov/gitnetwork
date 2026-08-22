@@ -29,13 +29,13 @@ export function PostCard({ post, authorName }: { post: Post; authorName?: string
 
   return (
     <article className="flex gap-3 border-b border-line px-4 py-4 sm:px-6">
-      <Link to={`/@${encodeURIComponent(post.author)}`}>
+      <Link to={`/${encodeURIComponent(post.author)}`}>
         <Avatar src={`https://avatars.githubusercontent.com/${post.author}`} name={post.author} />
       </Link>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
           <Link
-            to={`/@${encodeURIComponent(post.author)}`}
+            to={`/${encodeURIComponent(post.author)}`}
             className="font-semibold hover:underline"
           >
             {authorName ?? post.author}
@@ -59,7 +59,7 @@ export function PostCard({ post, authorName }: { post: Post; authorName?: string
             {formatCount(likes)}
           </button>
           <Link
-            to={`/@${encodeURIComponent(post.author)}/post/${post.id}`}
+            to={`/${encodeURIComponent(post.author)}/post/${post.id}`}
             className="flex items-center gap-1.5 hover:text-accent-deep"
           >
             <span aria-hidden>💬</span>

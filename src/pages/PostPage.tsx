@@ -74,7 +74,7 @@ export function PostPage() {
       {post && (
         <>
           <article className="flex gap-3 border-b border-line px-4 py-4 sm:px-6">
-            <Link to={`/@${encodeURIComponent(post.author)}`}>
+            <Link to={`/${encodeURIComponent(post.author)}`}>
               <Avatar
                 src={`https://avatars.githubusercontent.com/${post.author}`}
                 name={post.author}
@@ -84,7 +84,7 @@ export function PostPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
                 <Link
-                  to={`/@${encodeURIComponent(post.author)}`}
+                  to={`/${encodeURIComponent(post.author)}`}
                   className="font-semibold hover:underline"
                 >
                   {post.author}

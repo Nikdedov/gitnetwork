@@ -47,7 +47,7 @@ export function Explore() {
                 {data.socialUsers.map((u) => (
                   <Link
                     key={u.login}
-                    to={`/@${encodeURIComponent(u.login)}`}
+                    to={`/${encodeURIComponent(u.login)}`}
                     className="flex items-center gap-2 rounded-full border border-line bg-card py-1 pl-1 pr-3 text-sm hover:border-accent"
                   >
                     <Avatar src={u.avatar} name={u.login} size={24} />

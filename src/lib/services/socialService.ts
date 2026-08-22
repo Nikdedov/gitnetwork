@@ -2,6 +2,7 @@ import type { GitHubApi } from '../api/github'
 import type { GitHubUser, GitHubRepo } from '../api/github/types'
 import type { SocialStorage, SocialProfile, ProfileData } from '../storage/socialStorage'
 import { SOCIAL_REPO, type Post, type NewPost, sortPostsDesc } from '../post'
+import { PROFILE_PATH } from '../storage/socialStorage'
 import type { MediaFile } from '../media'
 import type { AuthService } from './authService'
 import { rankForYou, trendingTopics, extractTopics, type RankContext, type TopicCount } from './recommendationService'
@@ -50,7 +51,32 @@ export class SocialService {
         avatar: me.avatar_url,
         createdAt: new Date().toISOString(),
       }
-      await this.storage.saveProfile(profile)
+      const content = JSON.stringify(profile, null, 2)
+      try {
+        await this.github.contents.createFile(
+          me.login,
+          SOCIAL_REPO,
+          PROFILE_PATH,
+          content,
+          'Create social profile',
+          repo.default_branch,
+        )
+      } catch (err) {
+        if (err instanceof Error && (err as { status?: number }).status === 422) {
+          const existing = await this.github.contents.getFile(me.login, SOCIAL_REPO, PROFILE_PATH, repo.default_branch)
+          await this.github.contents.updateFile(
+            me.login,
+            SOCIAL_REPO,
+            PROFILE_PATH,
+            content,
+            'Update social profile',
+            existing.sha,
+            repo.default_branch,
+          )
+        } else {
+          throw err
+        }
+      }
       await this.github.contents.createFile(
         me.login,
         SOCIAL_REPO,
@@ -112,18 +138,20 @@ export class SocialService {
   async toggleLike(post: Post): Promise<{ liked: boolean; likes: number }> {
     const me = await this.requireUser()
     if (!post.issueNumber) throw new Error('Post has no interaction layer yet')
-    const already = await this.github.reactions.getMyLike(post.author, SOCIAL_REPO, post.issueNumber, me.login)
+    const already = await this.storage.getMyLike(post.author, post.issueNumber, me.login)
     if (already) {
       await this.github.reactions.removeLike(post.author, SOCIAL_REPO, post.issueNumber, me.login)
+      await this.storage.invalidateMyLike(post.author, post.issueNumber, me.login)
       return { liked: false, likes: Math.max(0, post.likes - 1) }
     }
     await this.github.reactions.addLike(post.author, SOCIAL_REPO, post.issueNumber)
+    await this.storage.invalidateMyLike(post.author, post.issueNumber, me.login)
     return { liked: true, likes: post.likes + 1 }
   }
 
   async getComments(post: Post) {
     if (!post.issueNumber) return []
-    return this.github.issues.getComments(post.author, SOCIAL_REPO, post.issueNumber)
+    return this.storage.getIssueComments(post.author, post.issueNumber)
   }
 
   async addComment(post: Post, body: string) {
@@ -133,6 +161,7 @@ export class SocialService {
     if (!text) throw new Error('Comment cannot be empty')
     if (text.length > 3000) throw new Error('Comment is too long (max 3000 characters)')
     const comment = await this.github.issues.addComment(post.author, SOCIAL_REPO, post.issueNumber, text)
+    await this.storage.invalidateIssueComments(post.author, post.issueNumber)
     await this.storage.invalidateUser(post.author)
     return { comment, me }
   }

@@ -27,7 +27,7 @@ export function reactionsApi(client: GitHubClient) {
     ): Promise<GitHubReaction | null> {
       const reactions = await client.get<GitHubReaction[]>(
         `/repos/${encodeURIComponent(owner)}/${repo}/issues/${issueNumber}/reactions`,
-        { query: { content: LIKE_CONTENT, per_page: 100 }, auth: false },
+        { query: { content: LIKE_CONTENT, per_page: 100 } },
       )
       return reactions.find((r) => r.user.login === login) ?? null
     },

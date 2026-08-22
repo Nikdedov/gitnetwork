@@ -59,7 +59,7 @@ export class GitHubClient {
   constructor(options: GitHubClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? 'https://api.github.com').replace(/\/$/, '')
     this.tokenProvider = options.token ?? (() => null)
-    this.doFetch = options.fetchImpl ?? fetch
+    this.doFetch = options.fetchImpl ?? ((input, init) => fetch(input, init))
   }
 
   private buildUrl(path: string, query?: RequestOptions['query']): string {

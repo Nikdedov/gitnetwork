@@ -34,7 +34,7 @@ export function issuesApi(client: GitHubClient) {
     getComments(owner: string, repo: string, issueNumber: number): Promise<IssueComment[]> {
       return client.get<IssueComment[]>(
         `/repos/${encodeURIComponent(owner)}/${repo}/issues/${issueNumber}/comments`,
-        { query: { per_page: 100, direction: 'asc' }, auth: false },
+        { query: { per_page: 100, direction: 'asc' } },
       )
     },
     addComment(owner: string, repo: string, issueNumber: number, body: string): Promise<IssueComment> {
