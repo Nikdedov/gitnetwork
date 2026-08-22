@@ -20,7 +20,7 @@ const PROD_CSP = [
 
 function cspPlugin(): Plugin {
   return {
-    name: 'gitnnetwork:csp',
+    name: 'gitnetwork:csp',
     apply: 'build',
     transformIndexHtml(html) {
       return html.replace(
@@ -36,7 +36,7 @@ function cspPlugin(): Plugin {
 // emit a copy of index.html as 404.html.
 function spaFallbackPlugin(): Plugin {
   return {
-    name: 'gitnnetwork:spa-fallback',
+    name: 'gitnetwork:spa-fallback',
     apply: 'build',
     writeBundle(options) {
       const outDir = resolve(options.dir ?? 'dist')

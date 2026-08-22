@@ -192,7 +192,7 @@ Your social repository is now ready.
 Your social data lives in your GitHub repository:
 
 ```
-<username>/social            # public repo, topic: gitnnetwork
+<username>/social            # public repo, topic: gitnetwork
 ├── .social/
 │   └── profile.json         # social metadata (displayName, bio, avatar, ...)
 ├── posts/
@@ -255,8 +255,8 @@ To run GitNetwork locally:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/gitnnetwork.git
-   cd gitnnetwork
+   git clone https://github.com/<your-username>/gitnetwork.git
+   cd gitnetwork
    ```
 
 2. Install dependencies:

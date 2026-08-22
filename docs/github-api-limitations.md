@@ -202,7 +202,7 @@ A value shipped with the JavaScript application is public.
 ## Data model on GitHub (per user)
 
 ```
-<username>/social            # public repo, topic: gitnnetwork
+<username>/social            # public repo, topic: gitnetwork
 ├── .social/
 │   └── profile.json         # social metadata (displayName, bio, avatar, ...)
 ├── posts/

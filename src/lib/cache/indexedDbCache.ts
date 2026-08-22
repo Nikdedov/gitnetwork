@@ -12,7 +12,7 @@ export class IndexedDbCache implements CacheStorage {
   private readonly dbName: string
   private readonly storeName: string
 
-  constructor(dbName: string = 'gitnnetwork-cache', storeName: string = 'kv') {
+  constructor(dbName: string = 'gitnetwork-cache', storeName: string = 'kv') {
     this.dbName = dbName
     this.storeName = storeName
   }

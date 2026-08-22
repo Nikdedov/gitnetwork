@@ -9,7 +9,7 @@ export interface TokenStore {
 }
 
 export class SessionTokenStore implements TokenStore {
-  private readonly key = 'gitnnetwork.token'
+  private readonly key = 'gitnetwork.token'
   private memory: string | null = null
 
   get(): string | null {

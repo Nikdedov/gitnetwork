@@ -42,7 +42,7 @@ export function Explore() {
           )}
           {data.socialUsers.length > 0 && (
             <div className="border-b border-line px-4 py-4 sm:px-6">
-              <h2 className="mb-2 text-sm font-bold">People on gitnnetwork</h2>
+              <h2 className="mb-2 text-sm font-bold">People on gitnetwork</h2>
               <div className="flex flex-wrap gap-3">
                 {data.socialUsers.map((u) => (
                   <Link

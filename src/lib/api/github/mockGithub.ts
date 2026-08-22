@@ -190,7 +190,7 @@ export function createMockGitHub(initial: Partial<MockState> = {}): MockGitHub {
       addTopics: async (owner: string, repo: string, topics: string[]) => {
         requireRepo(owner, repo).topics = topics
       },
-      ensureTopic: async (owner: string, repo: string, topic = 'gitnnetwork') => {
+      ensureTopic: async (owner: string, repo: string, topic = 'gitnetwork') => {
         const repoObj = requireRepo(owner, repo)
         if (!repoObj.topics.includes(topic)) repoObj.topics = [...repoObj.topics, topic]
       },
@@ -411,7 +411,7 @@ export function seedSocialRepo(
     bio: options.profile?.bio ?? null,
   })
   const key = repoKey(login, 'social')
-  state.repos[key] = makeRepo(login, 'social', { topics: options.topics ?? ['gitnnetwork'] })
+  state.repos[key] = makeRepo(login, 'social', { topics: options.topics ?? ['gitnetwork'] })
   state.files[key] = { 'README.md': { content: 'README', sha: nextSha() } }
 
   if (options.profile) {

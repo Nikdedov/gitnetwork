@@ -43,7 +43,7 @@ describe('SocialService.ensureOnboarded', () => {
     expect(repo.full_name).toBe('alice/social')
     expect(mock.state.files['alice/social']?.['.social/profile.json']).toBeDefined()
     expect(mock.state.files['alice/social']?.['posts/.gitkeep']).toBeDefined()
-    expect(mock.state.repos['alice/social'].topics).toContain('gitnnetwork')
+    expect(mock.state.repos['alice/social'].topics).toContain('gitnetwork')
   })
 
   it('is idempotent for an already-onboarded user', async () => {

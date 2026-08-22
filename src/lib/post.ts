@@ -3,7 +3,7 @@ import { isValidUlid } from './ulid'
 
 export const POST_MAX_LENGTH = 5000
 export const SOCIAL_REPO = 'social'
-export const SOCIAL_TOPIC = 'gitnnetwork'
+export const SOCIAL_TOPIC = 'gitnetwork'
 export const POST_LABEL = 'post'
 
 export interface Post {
