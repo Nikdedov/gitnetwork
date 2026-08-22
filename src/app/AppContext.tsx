@@ -15,6 +15,7 @@ interface AppContextValue {
   user: GitHubUser | null
   ready: boolean
   logout: () => void
+  refetchUser: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -38,9 +39,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [app])
 
+  const refetchUser = useCallback(async () => {
+    const me = await app.auth.currentUser()
+    setUser(me)
+  }, [app])
+
   const value = useMemo(
-    () => ({ app, user, ready, logout }),
-    [app, user, ready, logout],
+    () => ({ app, user, ready, logout, refetchUser }),
+    [app, user, ready, logout, refetchUser],
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

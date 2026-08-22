@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { useApp } from '../app/AppContext'
 
 export function Login() {
-  const { app } = useApp()
+  const { app, refetchUser } = useApp()
   const navigate = useNavigate()
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -27,6 +27,7 @@ export function Login() {
         setBusy(false)
         return
       }
+      await refetchUser()
       navigate('/home')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')

@@ -14,7 +14,6 @@ const PROD_CSP = [
   "font-src 'self' data:",
   "object-src 'none'",
   "base-uri 'self'",
-  "frame-ancestors 'none'",
   "form-action 'self'",
 ].join('; ')
 
