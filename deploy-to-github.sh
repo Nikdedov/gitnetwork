@@ -9,7 +9,7 @@ set -e
 GITHUB_PAT="${GITHUB_PAT:-}"
 GITHUB_USERNAME="${GITHUB_USERNAME:-}"
 REPOSITORY_NAME="${REPOSITORY_NAME:-gitnetwork}"
-BRANCH_TO_PUSH="${BRANCH_TO_PUSH:-main}"
+BRANCH_TO_PUSH="${BRANCH_TO_PUSH:-$(git branch --show-current || git rev-parse --abbrev-ref HEAD)}"
 
 if [ -z "$GITHUB_PAT" ]; then
     echo "Error: GITHUB_PAT environment variable is not set."
@@ -26,8 +26,11 @@ fi
 echo "Building static assets..."
 npm run build
 
-echo "Initializing git repository..."
-git init -b main
+echo "Ensuring current branch is tracked..."
+CURRENT_BRANCH=$(git branch --show-current || git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "main" ] && [ "$CURRENT_BRANCH" != "master" ]; then
+    git branch -M main
+fi
 
 echo "Adding remote with PAT..."
 git remote set-url origin "https://x-access-token:${GITHUB_PAT}@github.com/${GITHUB_USERNAME}/${REPOSITORY_NAME}.git" || git remote add origin "https://x-access-token:${GITHUB_PAT}@github.com/${GITHUB_USERNAME}/${REPOSITORY_NAME}.git"
