@@ -707,48 +707,256 @@ Do not build an indexer merely because it may be useful in the future.
 
 ---
 
-## MVP2-034 — Define optional non-authoritative indexer
+## MVP2-034 — Define optional non-authoritative pluggable indexer
 
 **Priority:** P1  
 **Component:** Indexing
 
-If MVP2-033 justifies it, define an indexer architecture.
-
-Requirements:
+Define an indexer architecture that is:
 
 - rebuildable;
 - replaceable;
 - non-authoritative;
 - canonical data remains in Git;
-- no dependency for basic repository access.
+- no dependency for basic repository access;
+- pluggable to allow third-party implementations.
 
 ### Acceptance
 
 - [ ] Architecture documented.
 - [ ] Trust model documented.
 - [ ] Failure behavior documented.
+- [ ] Pluggable indexer interface defined.
 
 ---
 
-## MVP2-035 — Implement minimal discovery indexer
+## MVP2-035 — Implement pluggable indexing service for recommendations
 
-**Priority:** P2  
+**Priority:** P1  
 **Component:** Indexing
 
-Only implement if justified by MVP2-033.
+Implement a simple separate indexing service for recommendations that:
 
-Possible scope:
-
-- public profile discovery;
-- post discovery;
-- search;
-- feed acceleration.
+- Can be used by users of GitNetwork;
+- Is pluggable, allowing others to develop their own indexers;
+- Provides recommendation scoring based on extracted data;
+- Does not modify canonical user content;
+- Operates independently of the GitNetwork client.
 
 ### Acceptance
 
-- [ ] Index can be rebuilt from Git data.
+- [ ] Indexing service accepts Git repository data as input.
+- [ ] Indexing service extracts posts, profiles, and social signals.
+- [ ] Indexing service computes recommendation scores.
+- [ ] Indexing service outputs index data in a standardized format.
+- [ ] Pluggable indexer interface allows third-party implementations.
 - [ ] Index does not modify canonical data.
 - [ ] Client can operate when indexer is unavailable.
+
+---
+
+# Phase 8b — Media Files Support
+
+## MVP2-036 — Extend media support beyond images
+
+**Priority:** P1  
+**Component:** Media
+
+Extend media support to include:
+
+- Images (JPG, PNG, WebP);
+- PDFs;
+- Links and embeds;
+- Other common file types.
+
+### Acceptance
+
+- [ ] File size limits per media type defined.
+- [ ] MIME type validation implemented.
+- [ ] Secure storage in Git repository or external storage.
+- [ ] Safe rendering in UI.
+- [ ] No executable content allowed.
+
+---
+
+## MVP2-037 — Implement media file handling in posts
+
+**Priority:** P1  
+**Component:** Media / Posts
+
+Posts should support:
+
+- Inline images;
+- Attached PDFs and documents;
+- Link previews;
+- Media galleries.
+
+### Acceptance
+
+- [ ] Media files can be attached to posts.
+- [ ] Media files are validated and stored securely.
+- [ ] Media files are rendered safely in the UI.
+- [ ] Media upload respects size and type limits.
+
+---
+
+# Phase 8c — Direct Messages
+
+## MVP2-038 — Design direct messages protocol
+
+**Priority:** P1  
+**Component:** Messaging / Security
+
+Design private direct messages between users.
+
+Direct messages must:
+
+- Use client-side encryption;
+- Not store plaintext in public repositories;
+- Be accessible only to participating users;
+- Support message history;
+- Support media attachments (encrypted).
+
+### Acceptance
+
+- [ ] Direct messages protocol documented.
+- [ ] Encryption scheme for messages documented.
+- [ ] Public/private message distinction documented.
+- [ ] Message history model defined.
+
+---
+
+## MVP2-039 — Implement encrypted direct messages
+
+**Priority:** P2  
+**Component:** Messaging / Storage
+
+Implement encrypted direct messages storage and retrieval.
+
+### Acceptance
+
+- [ ] Direct messages are encrypted client-side.
+- [ ] Ciphertext is stored securely.
+- [ ] Unauthorized clients cannot decrypt content.
+- [ ] Message history is preserved.
+
+---
+
+# Phase 8d — Profile Customization
+
+## MVP2-040 — Design profile customization feature
+
+**Priority:** P1  
+**Component:** UI / Security
+
+Allow users to customize their profiles beyond basic metadata.
+
+Profile customization should support:
+
+- Custom HTML/CSS for profile pages;
+- Custom themes and layouts;
+- Custom sections and widgets;
+- User-defined profile structure.
+
+### Acceptance
+
+- [ ] Profile customization feature documented.
+- [ ] Custom HTML/CSS storage model defined.
+- [ ] Security requirements documented.
+
+---
+
+## MVP2-041 — Implement profile customization with HTML/CSS sanitization
+
+**Priority:** P1  
+**Component:** UI / Security
+
+Implement profile customization with proper sanitization.
+
+Security requirements:
+
+- Sanitize custom HTML to prevent XSS;
+- Validate custom CSS to prevent malicious styles;
+- Ensure custom profiles remain accessible;
+- Do not allow execution of arbitrary code.
+
+### Acceptance
+
+- [ ] Custom HTML/CSS can be saved by users.
+- [ ] HTML is sanitized before rendering.
+- [ ] CSS is validated to prevent malicious styles.
+- [ ] No arbitrary code execution is possible.
+
+---
+
+# Phase 8e — Multi-Git-Service Support
+
+## MVP2-042 — Design multi-Git-service support architecture
+
+**Priority:** P1  
+**Component:** Architecture / Providers
+
+Formalize support for additional Git hosting services beyond GitHub.
+
+Target providers:
+
+- GitHub;
+- GitLab;
+- Codeberg;
+- Other Git services.
+
+### Acceptance
+
+- [ ] Multi-provider architecture documented.
+- [ ] Provider-specific authentication model defined.
+- [ ] Provider-specific repository conventions defined.
+- [ ] Provider-specific API capabilities documented.
+
+---
+
+## MVP2-043 — Extend storage abstraction for multi-provider support
+
+**Priority:** P1  
+**Component:** Storage
+
+Extend the `SocialStorage` abstraction to support future providers.
+
+### Acceptance
+
+- [ ] Storage abstraction supports provider concepts.
+- [ ] GitHub remains the default implementation.
+- [ ] GitLab and Codeberg concepts are supported in the interface.
+
+---
+
+# Phase 9 — Private Data and Encryption
+
+## MVP2-044 — Implement encryption for AI and private data
+
+**Priority:** P1  
+**Component:** Security
+
+Implement client-side encryption for:
+
+- Direct messages between users;
+- Private AI memory and context;
+- Private project data;
+- Private conversations.
+
+Encryption requirements:
+
+- Use modern symmetric encryption (e.g., AES-GCM);
+- Keys are derived from user-controlled secrets;
+- Ciphertext is stored in the repository or private storage;
+- Decryption happens entirely client-side;
+- AI agents must not access encrypted data without explicit user authorization.
+
+### Acceptance
+
+- [ ] Encryption scheme implemented.
+- [ ] Key derivation documented.
+- [ ] Client-side encryption/decryption works.
+- [ ] AI agents cannot access encrypted data without authorization.
 
 ---
 
@@ -1058,7 +1266,7 @@ Test:
 
 # Phase 14 — Release
 
-## MVP2-049 — Production build
+## MVP2-053 — Production build
 
 **Priority:** P0  
 **Component:** Release
@@ -1073,7 +1281,7 @@ Test:
 
 ---
 
-## MVP2-050 — Final MVP2 documentation review
+## MVP2-054 — Final MVP2 documentation review
 
 **Priority:** P0  
 **Component:** Documentation
@@ -1086,11 +1294,15 @@ Test:
 - [ ] Security documentation updated.
 - [ ] MCP documentation updated.
 - [ ] AI context documentation updated.
+- [ ] Indexing documentation updated.
+- [ ] Media documentation updated.
+- [ ] Messaging documentation updated.
+- [ ] Providers documentation updated.
 - [ ] Known limitations documented.
 
 ---
 
-## MVP2-051 — Final acceptance review
+## MVP2-055 — Final acceptance review
 
 **Priority:** P0  
 **Component:** Release
@@ -1112,8 +1324,8 @@ Verify every MVP2 acceptance criterion.
 
 These are intentionally not MVP2 requirements unless the roadmap is explicitly updated:
 
-- GitLab provider
-- Codeberg provider
+- GitLab provider as a full production provider
+- Codeberg provider as a full production provider
 - LocalGit provider as a full production provider
 - IPFS provider
 - full federation
@@ -1181,8 +1393,17 @@ MVP2-036 → MVP2-037 → MVP2-038
 Indexing:
 MVP2-033 → MVP2-034 → MVP2-035
 
+Media / Messaging / Customization / Providers:
+MVP2-036 → MVP2-037
+MVP2-038 → MVP2-039
+MVP2-040 → MVP2-041
+MVP2-042 → MVP2-043
+
+Encryption:
+MVP2-044
+
 Final:
-MVP2-043 → MVP2-051
+MVP2-053 → MVP2-063
 ```
 
 ---

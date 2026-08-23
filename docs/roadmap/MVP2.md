@@ -254,12 +254,12 @@ Do not create a separate centralized authentication system.
 
 # 9. Private Data and Encryption
 
-MVP2 may introduce private data that cannot be stored as plaintext public Git files.
+MVP2 introduces private data that cannot be stored as plaintext public Git files.
 
 Examples:
 
 ```text
-private messages
+private messages (direct messages)
 private projects
 private AI memory
 private conversations
@@ -279,6 +279,23 @@ Requirements:
 Do not add a centralized key escrow service as part of MVP2.
 
 Social recovery may be designed for a later version if MVP2 implementation becomes too complex.
+
+### Encryption for AI and Private Data
+
+MVP2 must implement client-side encryption for:
+
+- Direct messages between users
+- Private AI memory and context
+- Private project data
+- Private conversations
+
+Encryption requirements:
+
+- Use modern symmetric encryption (e.g., AES-GCM).
+- Keys are derived from user-controlled secrets.
+- Ciphertext is stored in the repository or private storage.
+- Decryption happens entirely client-side.
+- AI agents must not access encrypted data without explicit user authorization.
 
 ---
 
@@ -561,7 +578,8 @@ An optional indexer may provide:
 - profile search;
 - post search;
 - feed acceleration;
-- trending topics.
+- trending topics;
+- recommendation scoring.
 
 The indexer must be:
 
@@ -569,15 +587,126 @@ The indexer must be:
 - non-authoritative;
 - rebuildable from Git data;
 - unable to modify canonical user content;
-- optional for basic repository access.
+- optional for basic repository access;
+- pluggable to allow third-party implementations.
 
 The protocol must work without trusting the indexer for canonical content.
 
 Do not make a centralized indexer mandatory before MVP1 limitations justify it.
 
+### Pluggable Indexing Service for Recommendations
+
+MVP2 must provide a simple separate indexing service for recommendations that:
+
+- Can be used by users of GitNetwork;
+- Is pluggable, allowing others to develop their own indexers;
+- Provides recommendation scoring based on extracted data;
+- Does not modify canonical user content;
+- Operates independently of the GitNetwork client.
+
+The indexing service should:
+
+- Accept Git repository data as input;
+- Extract posts, profiles, and social signals;
+- Compute recommendation scores;
+- Output index data in a standardized format;
+- Support multiple indexer implementations via a common interface.
+
 ---
 
-# 19. Storage Abstraction
+# 19. Support for Other Git Services
+
+MVP2 should formalize support for additional Git hosting services beyond GitHub.
+
+Target providers:
+
+```text
+GitHub
+GitLab
+Codeberg
+Other Git services
+```
+
+The storage abstraction should support:
+
+- Provider-specific authentication;
+- Provider-specific repository conventions;
+- Provider-specific API capabilities.
+
+Only GitHub is required for MVP2 unless implementation feasibility clearly supports another provider.
+
+---
+
+# 20. Media Files Support
+
+MVP2 should extend media support beyond images only.
+
+Supported media types:
+
+- Images (JPG, PNG, WebP);
+- PDFs;
+- Links and embeds;
+- Other common file types.
+
+Requirements:
+
+- File size limits per media type;
+- MIME type validation;
+- Secure storage in Git repository or external storage;
+- Safe rendering in UI;
+- No executable content.
+
+Posts should support:
+
+- Inline images;
+- Attached PDFs and documents;
+- Link previews;
+- Media galleries.
+
+---
+
+# 21. Direct Messages
+
+MVP2 should introduce private direct messages between users.
+
+Direct messages must:
+
+- Use client-side encryption;
+- Not store plaintext in public repositories;
+- Be accessible only to participating users;
+- Support message history;
+- Support media attachments (encrypted).
+
+The protocol must distinguish:
+
+- Public posts;
+- Private direct messages.
+
+---
+
+# 22. Profile Customization
+
+MVP2 should allow users to customize their profiles beyond basic metadata.
+
+Profile customization should support:
+
+- Custom HTML/CSS for profile pages;
+- Custom themes and layouts;
+- Custom sections and widgets;
+- User-defined profile structure.
+
+Security requirements:
+
+- Sanitize custom HTML to prevent XSS;
+- Validate custom CSS to prevent malicious styles;
+- Ensure custom profiles remain accessible;
+- Do not allow execution of arbitrary code.
+
+Custom profile data should be stored securely and rendered safely by the client.
+
+---
+
+# 23. Storage Abstraction
 
 Keep:
 
@@ -641,7 +770,7 @@ The social network remains the primary product.
 
 ---
 
-# 22. Security Requirements
+# 24. Security Requirements
 
 MVP2 must maintain MVP1 security requirements and additionally address:
 
@@ -653,7 +782,10 @@ MVP2 must maintain MVP1 security requirements and additionally address:
 - malicious content in repositories;
 - malicious instructions embedded in posts;
 - prompt injection from social content;
-- unsafe AI-generated social actions.
+- unsafe AI-generated social actions;
+- XSS from custom profile HTML;
+- malicious media files;
+- encrypted message tampering.
 
 Important rule:
 
@@ -661,9 +793,11 @@ Important rule:
 
 An AI agent must not blindly follow instructions found inside posts, comments, repositories, or external content.
 
+Custom HTML and CSS must be sanitized before rendering.
+
 ---
 
-# 23. Testing Strategy
+# 25. Testing Strategy
 
 Add tests for:
 
@@ -697,7 +831,10 @@ Add tests for:
 - prompt injection handling;
 - private context isolation;
 - key handling;
-- malicious repository content.
+- malicious repository content;
+- HTML/CSS sanitization for custom profiles;
+- media file validation;
+- encryption/decryption correctness.
 
 ### Social
 
@@ -709,13 +846,15 @@ Continue MVP1 tests:
 - following;
 - reactions;
 - comments;
-- caching.
+- caching;
+- direct messages;
+- media files.
 
 No destructive GitHub API calls should run in CI.
 
 ---
 
-# 24. Documentation
+# 26. Documentation
 
 MVP2 should maintain:
 
@@ -737,7 +876,18 @@ docs/
 │   ├── architecture.md
 │   └── tools.md
 ├── security/
-│   └── private-data.md
+│   ├── private-data.md
+│   ├── encryption.md
+│   └── html-sanitization.md
+├── indexing/
+│   ├── architecture.md
+│   └── pluggable-indexer.md
+├── media/
+│   └── support.md
+├── messaging/
+│   └── direct-messages.md
+├── providers/
+│   └── multi-git-support.md
 └── roadmap/
     ├── MVP1.md
     ├── MVP2.md
@@ -748,7 +898,7 @@ Only create documents that are actually needed by the implementation.
 
 ---
 
-# 25. MVP1 → MVP2 Transition
+# 27. MVP1 → MVP2 Transition
 
 MVP2 must begin with a post-MVP1 architecture review.
 
@@ -783,7 +933,7 @@ If the actual MVP1 architecture differs from this roadmap, the implementation wi
 
 ---
 
-# 26. MVP2 Definition of Done
+# 28. MVP2 Definition of Done
 
 MVP2 is complete only when:
 
@@ -797,6 +947,12 @@ MVP2 is complete only when:
 - authorized AI social mutations work;
 - handoff format works;
 - private-data design is implemented or explicitly deferred with documented limitations;
+- encryption for AI and private data is implemented;
+- direct messages are implemented with encryption;
+- profile customization with HTML/CSS is implemented with sanitization;
+- media files support (images, PDFs, links) is implemented;
+- multi-Git-service support architecture is defined;
+- pluggable indexing service for recommendations is implemented;
 - security tests pass;
 - documentation is updated;
 - static deployment still works;
@@ -806,7 +962,7 @@ MVP2 is complete only when:
 
 ---
 
-# 27. MVP2 Acceptance Criteria
+# 29. MVP2 Acceptance Criteria
 
 ## Core
 
@@ -829,20 +985,30 @@ MVP2 is complete only when:
 - [ ] GitNetwork agent skill is documented.
 - [ ] AI can continue work using a handoff.
 
-## Privacy
+## Privacy and Encryption
 
 - [ ] Public/private data model is documented.
 - [ ] Private data is not committed as plaintext.
 - [ ] Encryption is client-side where implemented.
 - [ ] Keys are not stored in plaintext in repositories.
 - [ ] AI cannot access private context without authorization.
+- [ ] Encryption for AI and private data is implemented.
+- [ ] Direct messages use client-side encryption.
 
-## Social
+## Social and Messaging
 
 - [ ] AI can assist with creating a post.
 - [ ] AI can summarize social activity.
 - [ ] Social content remains canonical in Git.
 - [ ] Indexer, if introduced, is non-authoritative.
+- [ ] Direct messages are implemented with encryption.
+- [ ] Profile customization with HTML/CSS is implemented with sanitization.
+- [ ] Media files support (images, PDFs, links) is implemented.
+
+## Providers
+
+- [ ] Multi-Git-service support architecture is defined.
+- [ ] Storage abstraction supports GitHub, GitLab, Codeberg concepts.
 
 ## Quality
 
@@ -852,10 +1018,11 @@ MVP2 is complete only when:
 - [ ] Static build passes.
 - [ ] GitHub Pages deployment remains possible.
 - [ ] Documentation is complete.
+- [ ] Pluggable indexing service for recommendations is implemented.
 
 ---
 
-# 28. MVP2 Implementation Principle
+# 30. MVP2 Implementation Principle
 
 Build the smallest useful extension of MVP1.
 
@@ -897,7 +1064,7 @@ The latter violates the core MVP architecture unless a future version explicitly
 
 ---
 
-# 29. First Action After MVP1
+# 31. First Action After MVP1
 
 Do not immediately implement MVP2.
 

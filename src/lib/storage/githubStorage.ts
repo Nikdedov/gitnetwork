@@ -14,7 +14,7 @@ import {
   markdownToText,
 } from '../post'
 import { generateUlid } from '../ulid'
-import { arrayBufferToBase64, safeImageName, validateImage, type MediaFile } from '../media'
+import { arrayBufferToBase64, safeMediaName, validateMedia, type MediaFile, type MediaAttachment } from '../media'
 import {
   PROFILE_PATH,
   MANIFEST_PATH,
@@ -22,6 +22,8 @@ import {
   AI_MEMORY_PATH,
   AI_DECISIONS_PATH,
   AI_HANDOFFS_PATH,
+  DM_MESSAGES_PATH,
+  DM_THREADS_PATH,
   type SocialProfile,
   type SocialStorage,
   type ProfileData,
@@ -30,6 +32,7 @@ import type { GitHubUser, IssueComment } from '../api/github/types'
 import { postIdFromIssueTitle } from '../api/github/issues'
 import type { SocialEvent } from '../protocol/events'
 import { createDefaultManifest, isValidManifest, type SocialManifest } from '../protocol/manifest'
+import type { DirectMessage, DirectMessageThread } from '../messaging/directMessages'
 
 export interface GitHubStorageOptions {
   github: GitHubApi
@@ -234,13 +237,13 @@ export class GitHubStorage implements SocialStorage {
   }
 
   async uploadMedia(username: string, postId: string, file: MediaFile): Promise<string> {
-    const error = validateImage(file)
+    const error = validateMedia(file)
     if (error) throw new Error(error)
 
     const repo = await this.github.repos.getSocialRepo(username)
     if (!repo) throw new Error(`${username} has no social repository`)
 
-    const name = safeImageName(file.name, file.type)
+    const name = safeMediaName(file.name, file.type)
     const path = `media/${postId}/${name}`
     const base64 = arrayBufferToBase64(file.data)
     await this.github.contents.createBinaryFile(
@@ -670,6 +673,171 @@ export class GitHubStorage implements SocialStorage {
     await this.cache.delete(cacheKey(['mylike', username, String(issueNumber), login]))
   }
 
+  async getDirectMessages(username: string, recipient: string): Promise<DirectMessage[]> {
+    const key = cacheKey(['dm-messages', username, recipient])
+    const cached = await this.cache.get<DirectMessage[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const recipientDir = recipient < username ? `${username}-${recipient}` : `${recipient}-${username}`
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const messagePaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${DM_MESSAGES_PATH}/${recipientDir}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+
+    const messages: DirectMessage[] = []
+    for (const path of messagePaths.slice(0, 500)) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.type === 'direct_message' && parsed.sender && parsed.recipient) {
+          messages.push(parsed as DirectMessage)
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, messages, this.ttlMs)
+    return messages
+  }
+
+  async saveDirectMessage(username: string, message: DirectMessage): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const recipient = message.recipient
+    const threadDir = recipient < username ? `${username}-${recipient}` : `${recipient}-${username}`
+    const date = new Date(message.createdAt)
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    const path = `${DM_MESSAGES_PATH}/${threadDir}/${year}/${month}/${day}/${message.id}.json`
+
+    const content = JSON.stringify(message, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        path,
+        content,
+        `Save direct message ${message.id}`,
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, path, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          path,
+          content,
+          `Update direct message ${message.id}`,
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['dm-messages', username, message.recipient]))
+  }
+
+  async getDirectMessageThreads(username: string): Promise<DirectMessageThread[]> {
+    const key = cacheKey(['dm-threads', username])
+    const cached = await this.cache.get<DirectMessageThread[]>(key)
+    if (cached) return cached
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) return []
+
+    const tree = await this.github.contents.listTree(username, SOCIAL_REPO, repo.default_branch)
+    const threadPaths = tree.tree
+      .filter((entry) => entry.type === 'blob' && entry.path.startsWith(`${DM_THREADS_PATH}/`) && entry.path.endsWith('.json'))
+      .map((entry) => entry.path)
+      .sort()
+      .reverse()
+
+    const threads: DirectMessageThread[] = []
+    for (const path of threadPaths.slice(0, 100)) {
+      const raw = await this.github.contents.readFile(username, SOCIAL_REPO, path, repo.default_branch)
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && parsed.id && parsed.participants && Array.isArray(parsed.participants)) {
+          threads.push(parsed as DirectMessageThread)
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    await this.cache.set(key, threads, this.ttlMs)
+    return threads
+  }
+
+  async saveDirectMessageThread(username: string, thread: DirectMessageThread): Promise<void> {
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const path = `${DM_THREADS_PATH}/${thread.id}.json`
+    const content = JSON.stringify(thread, null, 2)
+    try {
+      await this.github.contents.createFile(
+        username,
+        SOCIAL_REPO,
+        path,
+        content,
+        `Save direct message thread ${thread.id}`,
+        repo.default_branch,
+      )
+    } catch (err) {
+      if (err instanceof Error && (err as { status?: number }).status === 422) {
+        const existing = await this.github.contents.getFile(username, SOCIAL_REPO, path, repo.default_branch)
+        await this.github.contents.updateFile(
+          username,
+          SOCIAL_REPO,
+          path,
+          content,
+          `Update direct message thread ${thread.id}`,
+          existing.sha,
+          repo.default_branch,
+        )
+      } else {
+        throw err
+      }
+    }
+    await this.cache.delete(cacheKey(['dm-threads', username]))
+  }
+
+  async uploadMediaAttachment(username: string, postId: string, attachment: MediaAttachment): Promise<string | { type: 'link'; url: string }> {
+    if ('url' in attachment) {
+      return { type: 'link', url: attachment.url }
+    }
+
+    const error = validateMedia(attachment)
+    if (error) throw new Error(error)
+
+    const repo = await this.github.repos.getSocialRepo(username)
+    if (!repo) throw new Error(`${username} has no social repository`)
+
+    const name = safeMediaName(attachment.name, attachment.type)
+    const path = `media/${postId}/${name}`
+    const base64 = arrayBufferToBase64(attachment.data)
+    await this.github.contents.createBinaryFile(
+      username,
+      SOCIAL_REPO,
+      path,
+      base64,
+      `Add media for post ${postId}`,
+      repo.default_branch,
+    )
+    return `https://raw.githubusercontent.com/${username}/${SOCIAL_REPO}/${repo.default_branch}/${path}`
+  }
+
   async invalidateUser(username: string): Promise<void> {
     await Promise.all([
       this.cache.delete(cacheKey(['profile', username])),
@@ -682,6 +850,7 @@ export class GitHubStorage implements SocialStorage {
       this.cache.delete(cacheKey(['ai-memory', username])),
       this.cache.delete(cacheKey(['ai-decisions', username])),
       this.cache.delete(cacheKey(['ai-handoffs', username])),
+      this.cache.delete(cacheKey(['dm-threads', username])),
     ])
   }
 }

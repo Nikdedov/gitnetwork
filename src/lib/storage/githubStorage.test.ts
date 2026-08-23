@@ -198,7 +198,7 @@ describe('GitHubStorage.uploadMedia', () => {
         size: 3,
         data: new Uint8Array(3).buffer,
       }),
-    ).rejects.toThrow(/Only JPG/)
+    ).rejects.toThrow(/Unsupported file type/)
   })
 })
 

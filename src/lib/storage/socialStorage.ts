@@ -1,8 +1,9 @@
 import type { GitHubUser, IssueComment } from '../api/github/types'
 import type { Post, NewPost } from '../post'
-import type { MediaFile } from '../media'
+import type { MediaFile, MediaAttachment } from '../media'
 import type { SocialManifest } from '../protocol/manifest'
 import type { SocialEvent } from '../protocol/events'
+import type { DirectMessage, DirectMessageThread } from '../messaging/directMessages'
 
 export type { SocialManifest }
 
@@ -17,6 +18,8 @@ export interface SocialProfile {
   following: number
   onboarded: boolean
   repoUrl: string
+  customHtml?: string
+  customCss?: string
 }
 
 export interface ProfileData {
@@ -26,6 +29,8 @@ export interface ProfileData {
   bio: string
   avatar: string
   createdAt: string
+  customHtml?: string
+  customCss?: string
 }
 
 export interface SocialStorage {
@@ -34,6 +39,7 @@ export interface SocialStorage {
   getPost(username: string, postId: string): Promise<Post | null>
   createPost(post: NewPost): Promise<Post>
   uploadMedia(username: string, postId: string, file: MediaFile): Promise<string>
+  uploadMediaAttachment(username: string, postId: string, attachment: MediaAttachment): Promise<string | { type: 'link'; url: string }>
   getFollowing(username: string): Promise<GitHubUser[]>
   saveProfile(profile: ProfileData): Promise<void>
   invalidateUser(username: string): Promise<void>
@@ -54,6 +60,12 @@ export interface SocialStorage {
   getAiHandoffs(username: string): Promise<Record<string, unknown>[]>
   saveAiHandoff(username: string, handoff: Record<string, unknown>): Promise<void>
 
+  // Direct Message methods
+  getDirectMessages(username: string, recipient: string): Promise<DirectMessage[]>
+  saveDirectMessage(username: string, message: DirectMessage): Promise<void>
+  getDirectMessageThreads(username: string): Promise<DirectMessageThread[]>
+  saveDirectMessageThread(username: string, thread: DirectMessageThread): Promise<void>
+
   // Comments methods
   getIssueComments(username: string, issueNumber: number): Promise<IssueComment[]>
   invalidateIssueComments(username: string, issueNumber: number): Promise<void>
@@ -69,3 +81,5 @@ export const EVENTS_PATH = 'social/events'
 export const AI_MEMORY_PATH = 'ai/memory'
 export const AI_DECISIONS_PATH = 'ai/decisions'
 export const AI_HANDOFFS_PATH = 'ai/handoffs'
+export const DM_MESSAGES_PATH = 'private/messages'
+export const DM_THREADS_PATH = 'private/threads'

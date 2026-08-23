@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "rootDir": "./src",
+    "outDir": "./dist-mcp",
+    "noEmit": false,
+    "emitDeclarationOnly": false
+  },
+  "include": ["src/mcp/**/*.ts", "src/lib/mcp/**/*.ts"],
+  "exclude": ["node_modules", "dist", "dist-mcp"]
+}

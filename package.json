@@ -11,9 +11,12 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "mcp": "tsx src/mcp/bin.ts",
+    "mcp:build": "tsc -p tsconfig.mcp.json"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "dompurify": "^3.3.1",
     "marked": "^15.0.7",
     "react": "^19.2.8",
@@ -34,6 +37,7 @@
     "jsdom": "^26.1.0",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.1.18",
+    "tsx": "^4.23.12",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vitest": "^4.1.11"
